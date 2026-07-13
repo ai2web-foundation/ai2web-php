@@ -1,5 +1,7 @@
 # AI2Web PHP SDK (`ai2web/ai2web`)
 
+[![CI](https://github.com/ai2web-foundation/ai2web-php/actions/workflows/ci.yml/badge.svg)](https://github.com/ai2web-foundation/ai2web-php/actions/workflows/ci.yml)
+
 The PHP reference implementation of the [AI2Web protocol](https://github.com/ai2web-foundation/ai2web-spec) - for Laravel, Symfony, or plain PHP. Mirrors `@ai2web/core`.
 
 ```php

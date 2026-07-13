@@ -5,11 +5,13 @@ declare(strict_types=1);
 require __DIR__ . '/../src/Manifest.php';
 require __DIR__ . '/../src/Validator.php';
 require __DIR__ . '/../src/Negotiator.php';
+require __DIR__ . '/../src/Schema.php';
 require __DIR__ . '/../src/Server.php';
 
 use Ai2Web\Manifest;
 use Ai2Web\Validator;
 use Ai2Web\Negotiator;
+use Ai2Web\Schema;
 use Ai2Web\Server;
 
 $failures = 0;
@@ -63,6 +65,23 @@ $act = Server::handle(['manifest' => $m, 'actions' => ['track_order' => fn($b) =
 $assert(($act['body']['ok'] ?? null) === true, 'server dispatches action handler', $act['body']);
 $miss = Server::handle(['manifest' => $m], 'GET', '/ai2w/nope');
 $assert($miss['status'] === 404, 'server 404s unknown module');
+
+// Request validation (Schema + server)
+$schema = ['type' => 'object', 'properties' => ['order_id' => ['type' => 'string'], 'qty' => ['type' => 'integer']], 'required' => ['order_id']];
+$assert(Schema::validate(['order_id' => 'A1', 'qty' => 2], $schema)['valid'] === true, 'schema: valid input passes');
+$assert(Schema::validate(['qty' => 2], $schema)['valid'] === false, 'schema: missing required fails');
+$assert(Schema::validate(['order_id' => 5], $schema)['valid'] === false, 'schema: wrong type fails');
+$assert(Schema::validate(['order_id' => 'A1', 'qty' => 1.5], $schema)['valid'] === false, 'schema: non-integer fails');
+$assert(Schema::validate(['anything' => 1], [])['valid'] === true, 'schema: empty schema accepts anything');
+
+$actMan = ['protocol' => 'ai2w', 'actions' => [['name' => 'track_order', 'endpoint' => '/ai2w/actions/track-order', 'input_schema' => $schema]]];
+$acts = ['track_order' => fn($b) => ['ok' => true]];
+$okRes = Server::handle(['manifest' => $actMan, 'actions' => $acts], 'POST', '/ai2w/actions/track-order', ['order_id' => 'A1']);
+$assert($okRes['status'] === 200, 'server: valid body -> 200', $okRes);
+$badRes = Server::handle(['manifest' => $actMan, 'actions' => $acts], 'POST', '/ai2w/actions/track-order', []);
+$assert($badRes['status'] === 400 && ($badRes['body']['error']['code'] ?? null) === 'invalid_request', 'server: missing required -> 400 invalid_request', $badRes['body']);
+$offRes = Server::handle(['manifest' => $actMan, 'actions' => $acts, 'validateInput' => false], 'POST', '/ai2w/actions/track-order', []);
+$assert($offRes['status'] === 200, 'server: validateInput=false opt-out passes through', $offRes['status']);
 
 echo "\n" . ($failures === 0 ? 'ALL PASS' : "$failures FAILED") . "\n";
 exit($failures === 0 ? 0 : 1);

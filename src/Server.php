@@ -25,6 +25,11 @@ final class Server
         $manifest = $opts['manifest'];
         $modules = $opts['modules'] ?? [];
         $actions = $opts['actions'] ?? [];
+        $validateInput = $opts['validateInput'] ?? true;
+        $declaredActions = [];
+        foreach ($manifest['actions'] ?? [] as $a) {
+            $declaredActions[$a['name'] ?? ''] = $a;
+        }
 
         $path = rtrim($path, '/') ?: '/';
         $method = strtoupper($method);
@@ -57,6 +62,13 @@ final class Server
             $name = str_replace('-', '_', $mm[1]);
             if (!isset($actions[$name])) {
                 return self::error(404, 'unsupported_capability', "Unknown action '$name'.");
+            }
+            $declared = $declaredActions[$name] ?? null;
+            if ($validateInput && $declared && !empty($declared['input_schema'])) {
+                $r = Schema::validate($body ?? [], $declared['input_schema']);
+                if (!$r['valid']) {
+                    return self::error(400, 'invalid_request', 'Request does not match the declared input schema: ' . implode('; ', $r['errors']) . '.');
+                }
             }
             return self::json(200, ($actions[$name])($body));
         }
