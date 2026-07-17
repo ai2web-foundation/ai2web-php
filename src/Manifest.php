@@ -18,7 +18,7 @@ final class Manifest
     {
         $this->m = [
             'protocol' => 'ai2w',
-            'version' => '0.1',
+            'version' => '0.2',
             'site' => $site,
             'capabilities' => [],
         ];
@@ -95,6 +95,43 @@ final class Manifest
     public function contact(array $c): self
     {
         $this->m['contact'] = $c;
+        return $this;
+    }
+
+    // v0.2 optional modules (all additive; a minimal manifest stays valid without them).
+
+    /** @param array<string,mixed> $g */
+    public function governance(array $g): self
+    {
+        $this->m['governance'] = $g;
+        return $this;
+    }
+
+    /** @param array<string,mixed> $u */
+    public function usagePolicy(array $u): self
+    {
+        $this->m['usage_policy'] = $u;
+        return $this;
+    }
+
+    /** @param array<string,mixed> $l */
+    public function legal(array $l): self
+    {
+        $this->m['legal'] = $l;
+        return $this;
+    }
+
+    /** @param array<string,mixed> $a */
+    public function agentIdentity(array $a): self
+    {
+        $this->m['identity'] = array_merge($this->m['identity'] ?? [], ['agent' => $a]);
+        return $this;
+    }
+
+    /** @param list<array<string,mixed>> $k */
+    public function knowledge(array $k): self
+    {
+        $this->m['knowledge'] = $k;
         return $this;
     }
 

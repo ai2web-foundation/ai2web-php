@@ -52,6 +52,21 @@ final class Server
             return self::json(200, $manifest);
         }
 
+        // Multi-surface projections (RFC-0015): the one canonical manifest, emitted in other
+        // discovery formats so agents that speak llms.txt or agent.json need not parse ai2w first.
+        if ($path === '/llms.txt') {
+            if ($method !== 'GET') {
+                return self::error(405, 'invalid_request', 'Use GET for llms.txt.');
+            }
+            return self::text(200, 'text/plain; charset=utf-8', Export::toLlmsTxt($manifest));
+        }
+        if (in_array($path, ['/.well-known/agent.json', '/agent.json'], true)) {
+            if ($method !== 'GET') {
+                return self::error(405, 'invalid_request', 'Use GET for agent.json.');
+            }
+            return self::json(200, Export::toAgentJson($manifest));
+        }
+
         if ($path === '/ai2w/negotiate') {
             $b = is_array($body) ? $body : [];
             $supports = $b['agent']['supports'] ?? $b['supports'] ?? $b;
@@ -88,6 +103,12 @@ final class Server
     private static function json(int $status, mixed $body): array
     {
         return ['status' => $status, 'headers' => array_merge(['content-type' => 'application/json; charset=utf-8'], self::CORS), 'body' => $body];
+    }
+
+    /** @return array{status:int,headers:array<string,string>,body:mixed} */
+    private static function text(int $status, string $contentType, string $body): array
+    {
+        return ['status' => $status, 'headers' => array_merge(['content-type' => $contentType], self::CORS), 'body' => $body];
     }
 
     /** @return array{status:int,headers:array<string,string>,body:mixed} */

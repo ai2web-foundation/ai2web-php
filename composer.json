@@ -2,7 +2,20 @@
   "name": "ai2web/ai2web",
   "description": "AI2Web (ai2w) PHP SDK - capability model, manifest builder, validator, negotiation, server handler.",
   "type": "library",
+  "keywords": ["ai2web", "ai2w", "ai", "agents", "mcp", "protocol", "manifest", "agentic-web"],
+  "homepage": "https://ai2web.dev",
   "license": "MIT",
+  "authors": [
+    {
+      "name": "AI2Web Foundation",
+      "homepage": "https://ai2web.dev"
+    }
+  ],
+  "support": {
+    "issues": "https://github.com/ai2web-foundation/ai2web-php/issues",
+    "source": "https://github.com/ai2web-foundation/ai2web-php",
+    "docs": "https://ai2web.dev/docs"
+  },
   "require": {
     "php": ">=8.1"
   },
