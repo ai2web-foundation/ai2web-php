@@ -43,10 +43,13 @@ echo json_encode($res['body']);
 ```
 
 ## Classes
-- `Ai2Web\Manifest` - fluent capability-model builder.
+- `Ai2Web\Manifest` - fluent capability-model builder (with the v0.2 modules: governance, usage policy, legal, knowledge, agent identity).
 - `Ai2Web\Validator` - validation + AI Readiness scoring (spec §9/§11).
 - `Ai2Web\Negotiator` - capability negotiation (spec §5).
-- `Ai2Web\Server` - framework-agnostic route handler.
+- `Ai2Web\Server` - framework-agnostic route handler (serves `/ai2w`, actions, and the `/llms.txt` + `/.well-known/agent.json` projections).
+- `Ai2Web\Export` - `toLlmsTxt()` / `toAgentJson()` projections of the manifest (RFC-0015).
+- `Ai2Web\Schema` - JSON Schema input validation.
+- `Ai2Web\Safety` - `isSafePublicUrl()` / `assertSafePublicUrl()` / `sameOrigin()` SSRF guard.
 
 ## Test
 ```bash

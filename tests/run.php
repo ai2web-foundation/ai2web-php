@@ -8,6 +8,7 @@ require __DIR__ . '/../src/Negotiator.php';
 require __DIR__ . '/../src/Schema.php';
 require __DIR__ . '/../src/Server.php';
 require __DIR__ . '/../src/Export.php';
+require __DIR__ . '/../src/Safety.php';
 
 use Ai2Web\Manifest;
 use Ai2Web\Validator;
@@ -15,6 +16,7 @@ use Ai2Web\Negotiator;
 use Ai2Web\Schema;
 use Ai2Web\Server;
 use Ai2Web\Export;
+use Ai2Web\Safety;
 
 $failures = 0;
 $assert = function (bool $cond, string $label, mixed $detail = null) use (&$failures): void {
@@ -150,6 +152,19 @@ $ajr2 = Server::handle($srv, 'GET', '/agent.json');
 $assert($ajr2['status'] === 200 && $ajr2['body']['policies']['governance']['rate_limits']['requests'] === 60, 'server: /agent.json alias + governance');
 $llpost = Server::handle($srv, 'POST', '/llms.txt');
 $assert($llpost['status'] === 405, 'server: /llms.txt POST -> 405');
+
+// SSRF guard (parity with the other SDKs)
+$assert(Safety::isSafePublicUrl('https://store.example.com') === true, 'ssrf: allows public https');
+$assert(Safety::isSafePublicUrl('http://169.254.169.254/latest') === false, 'ssrf: blocks cloud metadata ip');
+$assert(Safety::isSafePublicUrl('http://localhost:8080') === false, 'ssrf: blocks localhost');
+$assert(Safety::isSafePublicUrl('https://10.0.0.5/x') === false, 'ssrf: blocks 10.x');
+$assert(Safety::isSafePublicUrl('https://192.168.1.1') === false, 'ssrf: blocks 192.168.x');
+$assert(Safety::isSafePublicUrl('https://172.16.0.9/x') === false, 'ssrf: blocks 172.16-31.x');
+$assert(Safety::isSafePublicUrl('http://[::1]/x') === false, 'ssrf: blocks ipv6 loopback');
+$assert(Safety::isSafePublicUrl('https://fcbarcelona.com') === true, 'ssrf: fc-prefixed domain is not an ipv6 ULA');
+$assert(Safety::isSafePublicUrl('file:///etc/passwd') === false, 'ssrf: blocks non-http scheme');
+$assert(Safety::sameOrigin('https://a.example/x', 'https://a.example/y') === true, 'sameOrigin: same host');
+$assert(Safety::sameOrigin('https://a.example', 'https://b.example') === false, 'sameOrigin: different host');
 
 echo "\n" . ($failures === 0 ? 'ALL PASS' : "$failures FAILED") . "\n";
 exit($failures === 0 ? 0 : 1);
