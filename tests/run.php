@@ -9,6 +9,7 @@ require __DIR__ . '/../src/Schema.php';
 require __DIR__ . '/../src/Server.php';
 require __DIR__ . '/../src/Export.php';
 require __DIR__ . '/../src/Safety.php';
+require __DIR__ . '/../src/Ap2.php';
 
 use Ai2Web\Manifest;
 use Ai2Web\Validator;
@@ -17,6 +18,7 @@ use Ai2Web\Schema;
 use Ai2Web\Server;
 use Ai2Web\Export;
 use Ai2Web\Safety;
+use Ai2Web\Ap2;
 
 $failures = 0;
 $assert = function (bool $cond, string $label, mixed $detail = null) use (&$failures): void {
@@ -165,6 +167,75 @@ $assert(Safety::isSafePublicUrl('https://fcbarcelona.com') === true, 'ssrf: fc-p
 $assert(Safety::isSafePublicUrl('file:///etc/passwd') === false, 'ssrf: blocks non-http scheme');
 $assert(Safety::sameOrigin('https://a.example/x', 'https://a.example/y') === true, 'sameOrigin: same host');
 $assert(Safety::sameOrigin('https://a.example', 'https://b.example') === false, 'sameOrigin: different host');
+
+// AP2 (Agent Payments Protocol) merchant primitives
+$ap2Key = <<<'PEM'
+-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC7/yKHuyEHpcRo
+Zahdi0IJeDyBoy7jV73flum/ysm3H3nK1lh7WHPNV1r27rOodKAIiJH/yVrKcAeR
+qRyDgJ8ftAIla/qj9zDu3h5rR40wRDM60DhpkjMoHa2aQ3Lh93wH004k40HxvWOA
+FORAZPrxo4JJTA7Qayak4VwWH2zepeSpmqO3kovZR4DDeDRJf/UnWC5fDAvQno+W
+c2lVdbzeErLS1TvbmVDVfIwPkE008gZWEhQ/qK3RSoQEUxqeqaA8BM/WYdQr+PDv
+EJgT0MfECcV+6ACMNHTCzspVRkE3pPcM2PVJekbGlirzxYMn2i0Hs0xgz1lwjEAb
+/pIA3Vh1AgMBAAECggEAGRI5ZKiMCx0MSG/mODNuJx0l1JQSmLcG116k5bMBm65S
+674SJsDxEJ1pwCytQPXssbak4dvUg9LU75QB/XeVwQCcmKkB0AQTPofYvq3YImu1
++U3zeADLWbo7gKsmEwSSQejoLvsvvDFpp5chqYTOApOvuF6wSxM/IBX91eVy+24h
+sQgxxwmYtwaFqiW56oNcF+8OZVCenZF4NWGfJ6vDxyIgkfvlhPSzQl8BimzIB2j+
+hs5S4TYY1fE7pcuI91zk2dGpK9E1nxl3e57gZJ19w+YrhOXvatOSX++QeBrv2Vik
+kU1SbJq5K3fcGvjkEYXRqth0loTbZl3HxOgef4QksQKBgQDlxWxaQFrsa5pFP1a2
+iklsuIbKr/0DgHuENzlZtrUPzbzCYBQT28ADa+3HZIvXvNo4bUbHayrrwQh6nFWl
+n0JUVl3JzUcGJO6nJH/4uLI/G4NkMz/BW5G1fMnfpEBc2LAWbGYE0tgFxL/uvTeL
+o5zTI3ElZX5FsMb/KAoU5J8TYwKBgQDRdPA5ydXMoooQQ3mYc/UUdnVZPtiN0G1j
++v/QyH5+0SEbj5AUaIbuTblNANRZsiz0OjJ4i5ZrXLRXOwYL0WvcC2we1KnRaomv
+dNmdQwu31YRnxEq97/3dSBJC7K0VkiRjrLIZD/dDDUnjFjBD1fa51AcedXmPJNjf
+3RyTYcKoRwKBgQDh8x2VNtnyyfHADQQ5p42C04cBxMSbb/qGz0OffHNbIidwQckc
+qimNc9I1FSQLuBQkDxneOv3PLlknMZtrrkws4W2DaFFismjZhqQts3rdYjH4FAmr
+HGASR6/BNCVy6EdpFZnRPoHeUlen7vyzXeZ3HtBCRSdCYw+dlQMs/pGMHwKBgQCG
+igaEGBEskHr+V1kTg+g4bJ6T5LpU3TxmrCMFiMM30jzh5yU09q81AtezjoTX2Irn
+lTo2E/NaowFzxoXrsWkGvo+EfjVWPoiSGwxs51PvkUarIHqh5jW6nUCdnEjRQj39
+iEAduROqDi8XnnkCGb2RP5ATEII0YAauROjGAlV2oQKBgD4yneSwi1i8gfd4fEUS
+tuRB4AkX6EHw6E9Zjj/gwttVt1vYM8dbam5aZPlP602yRRUrt0T101zE+s0SBQZh
+9IUctJHxGO/5cufDZvovw2pXKlZkcpDxwPoKiUQZxiPBXf8YfKHUXz0gSc6QHAzu
+XinNZUVoxqiVkt4smBecyfGS
+-----END PRIVATE KEY-----
+PEM;
+
+$ap2Transport = Ap2::transport();
+$assert(($ap2Transport['enabled'] ?? false) === true && ($ap2Transport['version'] ?? '') === '0.2.0', 'ap2: transport advertises version');
+$assert(str_contains($ap2Transport['extension'] ?? '', 'ap2'), 'ap2: transport carries the extension uri');
+
+$ap2Intent = Ap2::intentMandate('a red basketball shoe', ['skus' => ['SHOE-1'], 'now' => 1000, 'expires_in' => 900]);
+$assert(($ap2Intent['natural_language_description'] ?? '') === 'a red basketball shoe' && !empty($ap2Intent['intent_expiry']) && $ap2Intent['skus'] === ['SHOE-1'], 'ap2: intent mandate built');
+
+$ap2Contents = Ap2::cartContents(
+    [['label' => 'Mug', 'unit_amount' => 9.99, 'quantity' => 3]],
+    'GBP',
+    'Test Store',
+    ['now' => 1000]
+);
+$assert(($ap2Contents['payment_request']['details']['total']['amount']['value'] ?? 0) === 29.97, 'ap2: cart total = 3 x 9.99', $ap2Contents['payment_request']['details']['total'] ?? null);
+$assert(($ap2Contents['payment_request']['details']['total']['amount']['currency'] ?? '') === 'GBP', 'ap2: cart currency major units');
+
+$ap2Mandate = Ap2::cartMandate($ap2Contents, $ap2Key);
+$assert(substr_count($ap2Mandate['merchant_authorization'] ?? '', '.') === 2, 'ap2: cart mandate is a JWT');
+$ap2Pub = Ap2::publicKey($ap2Key);
+$assert(Ap2::verifyCartMandate($ap2Mandate, $ap2Pub) === true, 'ap2: valid cart mandate verifies against the public key');
+
+// Tamper: change the total, signature/hash must no longer verify.
+$ap2Tampered = $ap2Mandate;
+$ap2Tampered['contents']['payment_request']['details']['total']['amount']['value'] = 0.01;
+$assert(Ap2::verifyCartMandate($ap2Tampered, $ap2Pub) === false, 'ap2: tampered cart mandate fails verification');
+
+$ap2Jwks = Ap2::jwks($ap2Key);
+$assert(($ap2Jwks['keys'][0]['kty'] ?? '') === 'RSA' && !empty($ap2Jwks['keys'][0]['n']) && ($ap2Jwks['keys'][0]['alg'] ?? '') === 'RS256', 'ap2: jwks publishes the RSA signing key');
+
+$ap2Pd = Ap2::paymentDetails(['payment_mandate_contents' => [
+    'payment_mandate_id' => 'pm_1',
+    'payment_details_id' => 'pr_x',
+    'payment_details_total' => ['label' => 'Total', 'amount' => Ap2::amount(29.97, 'GBP')],
+    'payment_response' => ['method_name' => 'card', 'payer_email' => 'a@b.com'],
+]]);
+$assert($ap2Pd['payment_details_id'] === 'pr_x' && $ap2Pd['method'] === 'card' && $ap2Pd['payer_email'] === 'a@b.com', 'ap2: payment mandate parsed');
 
 echo "\n" . ($failures === 0 ? 'ALL PASS' : "$failures FAILED") . "\n";
 exit($failures === 0 ? 0 : 1);
