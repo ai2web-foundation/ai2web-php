@@ -248,10 +248,85 @@ final class Ap2
         return (string) openssl_pkey_get_details($key)['key'];
     }
 
-    /** @param array<string,mixed> $data */
-    private static function canonical(array $data): string
+    /**
+     * JCS (RFC 8785) canonicalisation, so a cart_hash computed by one SDK is byte-identical to
+     * every other: object keys sorted, no whitespace, minimal string escaping, integers without a
+     * decimal point, currency amounts as a short decimal.
+     *
+     * @param mixed $data
+     */
+    public static function canonical($data): string
     {
-        return (string) json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        if ($data === null) {
+            return 'null';
+        }
+        if (is_bool($data)) {
+            return $data ? 'true' : 'false';
+        }
+        if (is_int($data)) {
+            return (string) $data;
+        }
+        if (is_float($data)) {
+            return self::jcsNumber($data);
+        }
+        if (is_string($data)) {
+            return self::jcsString($data);
+        }
+        if ($data instanceof \stdClass) {
+            $data = (array) $data;
+        }
+        if (is_array($data)) {
+            if (array_is_list($data)) {
+                return '[' . implode(',', array_map([self::class, 'canonical'], $data)) . ']';
+            }
+            $keys = array_map('strval', array_keys($data));
+            sort($keys, SORT_STRING);
+            $parts = [];
+            foreach ($keys as $k) {
+                $parts[] = self::jcsString($k) . ':' . self::canonical($data[$k]);
+            }
+            return '{' . implode(',', $parts) . '}';
+        }
+        return 'null';
+    }
+
+    private static function jcsNumber(float $x): string
+    {
+        if (is_finite($x) && $x === floor($x) && abs($x) < 1e15) {
+            return (string) (int) $x;
+        }
+        $s = sprintf('%.2f', $x);
+        return rtrim(rtrim($s, '0'), '.');
+    }
+
+    private static function jcsString(string $s): string
+    {
+        $out = '"';
+        $len = strlen($s);
+        for ($i = 0; $i < $len; $i++) {
+            $c = $s[$i];
+            $o = ord($c);
+            if ($c === '"') {
+                $out .= '\\"';
+            } elseif ($c === '\\') {
+                $out .= '\\\\';
+            } elseif ($o === 0x08) {
+                $out .= '\\b';
+            } elseif ($o === 0x09) {
+                $out .= '\\t';
+            } elseif ($o === 0x0A) {
+                $out .= '\\n';
+            } elseif ($o === 0x0C) {
+                $out .= '\\f';
+            } elseif ($o === 0x0D) {
+                $out .= '\\r';
+            } elseif ($o < 0x20) {
+                $out .= sprintf('\\u%04x', $o);
+            } else {
+                $out .= $c; // UTF-8 bytes pass through unescaped
+            }
+        }
+        return $out . '"';
     }
 
     private static function b64url(string $bin): string

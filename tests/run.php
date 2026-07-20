@@ -204,6 +204,9 @@ $ap2Transport = Ap2::transport();
 $assert(($ap2Transport['enabled'] ?? false) === true && ($ap2Transport['version'] ?? '') === '0.2.0', 'ap2: transport advertises version');
 $assert(str_contains($ap2Transport['extension'] ?? '', 'ap2'), 'ap2: transport carries the extension uri');
 
+$ap2Golden = ['z' => 'a/b', 'currency' => 'GBP', 'n' => 10.0, 'items' => [['value' => 9.99, 'label' => 'Mug']], 'ok' => true];
+$assert(Ap2::canonical($ap2Golden) === '{"currency":"GBP","items":[{"label":"Mug","value":9.99}],"n":10,"ok":true,"z":"a/b"}', 'ap2: JCS canonical is cross-SDK stable', Ap2::canonical($ap2Golden));
+
 $ap2Intent = Ap2::intentMandate('a red basketball shoe', ['skus' => ['SHOE-1'], 'now' => 1000, 'expires_in' => 900]);
 $assert(($ap2Intent['natural_language_description'] ?? '') === 'a red basketball shoe' && !empty($ap2Intent['intent_expiry']) && $ap2Intent['skus'] === ['SHOE-1'], 'ap2: intent mandate built');
 
