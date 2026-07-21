@@ -10,6 +10,7 @@ require __DIR__ . '/../src/Server.php';
 require __DIR__ . '/../src/Export.php';
 require __DIR__ . '/../src/Safety.php';
 require __DIR__ . '/../src/Ap2.php';
+require __DIR__ . '/../src/Nlweb.php';
 
 use Ai2Web\Manifest;
 use Ai2Web\Validator;
@@ -19,6 +20,7 @@ use Ai2Web\Server;
 use Ai2Web\Export;
 use Ai2Web\Safety;
 use Ai2Web\Ap2;
+use Ai2Web\Nlweb;
 
 $failures = 0;
 $assert = function (bool $cond, string $label, mixed $detail = null) use (&$failures): void {
@@ -239,6 +241,19 @@ $ap2Pd = Ap2::paymentDetails(['payment_mandate_contents' => [
     'payment_response' => ['method_name' => 'card', 'payer_email' => 'a@b.com'],
 ]]);
 $assert($ap2Pd['payment_details_id'] === 'pr_x' && $ap2Pd['method'] === 'card' && $ap2Pd['payer_email'] === 'a@b.com', 'ap2: payment mandate parsed');
+
+// NLWeb (nlweb.ai) interop
+$nlTransport = Nlweb::transport();
+$assert(($nlTransport['enabled'] ?? false) === true && ($nlTransport['version'] ?? '') === '0.55' && !empty($nlTransport['ask']), 'nlweb: transport advertises ask endpoint');
+
+$nlResp = Nlweb::askResponse('red shoes', [
+    ['url' => 'https://s.example/p/1', 'name' => 'Red Shoe', 'description' => 'A red running shoe', 'score' => 90],
+    ['url' => 'https://s.example/p/2', 'title' => 'Crimson Sneaker'],
+], ['site' => 'store']);
+$assert(($nlResp['results'][0]['@type'] ?? '') === 'Item', 'nlweb: results are schema.org Items', $nlResp['results'][0] ?? null);
+$assert(($nlResp['results'][0]['name'] ?? '') === 'Red Shoe' && ($nlResp['results'][0]['score'] ?? 0) === 90 && ($nlResp['results'][0]['site'] ?? '') === 'store', 'nlweb: item fields mapped');
+$assert(($nlResp['results'][1]['name'] ?? '') === 'Crimson Sneaker' && ($nlResp['results'][1]['schema_object']['@type'] ?? '') === 'Thing', 'nlweb: title falls back to name + schema_object built');
+$assert(count($nlResp['results']) === 2 && ($nlResp['query'] ?? '') === 'red shoes', 'nlweb: ask response envelope');
 
 echo "\n" . ($failures === 0 ? 'ALL PASS' : "$failures FAILED") . "\n";
 exit($failures === 0 ? 0 : 1);
