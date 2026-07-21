@@ -9,6 +9,8 @@
 
 # AI2Web PHP SDK (`ai2web/ai2web`)
 
+[![AI2Web on Launchpadly - Product of the Week (Gold)](https://launchpadly.co/embed/badges/startup/ai2web.svg?variant=product-week-gold)](https://launchpadly.co/startup/ai2web?ref=badge)
+
 [![CI](https://github.com/ai2web-foundation/ai2web-php/actions/workflows/ci.yml/badge.svg)](https://github.com/ai2web-foundation/ai2web-php/actions/workflows/ci.yml)
 [![Packagist Version](https://img.shields.io/packagist/v/ai2web/ai2web)](https://packagist.org/packages/ai2web/ai2web)
 [![PHP Version](https://img.shields.io/packagist/php-v/ai2web/ai2web)](https://packagist.org/packages/ai2web/ai2web)
