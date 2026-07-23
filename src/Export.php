@@ -130,4 +130,97 @@ final class Export
             ],
         ];
     }
+
+    /**
+     * OAuth 2.0 Protected Resource metadata (RFC 9728), for
+     * /.well-known/oauth-protected-resource. MCP clients read this to discover which
+     * authorization server guards the resource before starting a flow.
+     *
+     * Returns null when the site does not advertise oauth2, so an auth surface the site
+     * cannot honour is never published.
+     *
+     * @param array<string,mixed> $m
+     * @return array<string,mixed>|null
+     */
+    public static function toOAuthProtectedResource(array $m): ?array
+    {
+        $methods = $m['auth']['methods'] ?? [];
+        if (!is_array($methods) || !in_array('oauth2', $methods, true)) {
+            return null;
+        }
+        $base = rtrim((string) ($m['site']['url'] ?? ''), '/');
+        $issuer = $base;
+        $authz = (string) ($m['auth']['oauth2']['authorization_url'] ?? '');
+        if ($authz !== '') {
+            $p = parse_url($authz);
+            if (!empty($p['scheme']) && !empty($p['host'])) {
+                $issuer = $p['scheme'] . '://' . $p['host'] . (isset($p['port']) ? ':' . $p['port'] : '');
+            }
+        }
+        $doc = [
+            'resource' => $base . '/ai2w',
+            'authorization_servers' => [$issuer],
+            'bearer_methods_supported' => ['header'],
+        ];
+        $scopes = $m['auth']['oauth2']['scopes'] ?? null;
+        if (is_array($scopes) && $scopes !== []) {
+            $doc['scopes_supported'] = array_values($scopes);
+        }
+        return $doc;
+    }
+
+    /**
+     * Map usage_policy onto Content Signals tokens. `search` stays yes because AI2Web exists to
+     * be discoverable; AI signals are only asserted when the manifest states them, so an unset
+     * policy is never reported as a refusal. Null when no policy is declared.
+     *
+     * @param array<string,mixed> $m
+     */
+    public static function toContentSignals(array $m): ?string
+    {
+        $p = $m['usage_policy'] ?? null;
+        if (!is_array($p) || $p === []) {
+            return null;
+        }
+        $signals = ['search=yes'];
+        if (isset($p['content_reproduction']) && is_bool($p['content_reproduction'])) {
+            $signals[] = 'ai-input=' . ($p['content_reproduction'] ? 'yes' : 'no');
+        }
+        if (isset($p['model_training']) && is_bool($p['model_training'])) {
+            $signals[] = 'ai-train=' . ($p['model_training'] ? 'yes' : 'no');
+        }
+        return implode(', ', $signals);
+    }
+
+    /**
+     * A robots.txt FRAGMENT carrying the usage policy and a pointer to the manifest. Append it
+     * to an existing robots.txt; it is never a replacement, and emits no Disallow rules.
+     *
+     * @param array<string,mixed> $m
+     */
+    public static function toRobotsTxt(array $m): string
+    {
+        $base = rtrim((string) ($m['site']['url'] ?? ''), '/');
+        $signals = self::toContentSignals($m);
+        $lines = ['# AI2Web usage policy, projected from ' . $base . '/ai2w', 'User-agent: *'];
+        if ($signals !== null) {
+            $lines[] = 'Content-Signal: ' . $signals;
+        }
+        if (($m['usage_policy']['bulk_extraction'] ?? null) === false) {
+            $lines[] = '# bulk_extraction: false - please use the /ai2w endpoints instead of crawling';
+        }
+        $lines[] = '# AI2Web-Manifest: ' . $base . '/ai2w';
+        return implode("\n", $lines) . "\n";
+    }
+
+    /**
+     * Value for an HTTP Link header advertising the manifest, so non-HTML clients discover it
+     * without parsing a page for <link rel="ai2w">.
+     *
+     * @param array<string,mixed> $m
+     */
+    public static function toDiscoveryLinkHeader(array $m): string
+    {
+        return '<' . rtrim((string) ($m['site']['url'] ?? ''), '/') . '/ai2w>; rel="ai2w"';
+    }
 }
